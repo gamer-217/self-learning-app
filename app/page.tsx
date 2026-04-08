@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getProfiles, createProfile } from "@/lib/db";
+import { getProfiles, createProfile, deleteProfile } from "@/lib/db";
 import { Profile } from "@/lib/types";
 import { useProfile } from "@/context/ProfileContext";
 import { PROFILE_AVATARS, PROFILE_COLORS } from "@/lib/constants";
@@ -16,6 +16,7 @@ export default function ProfileSelectPage() {
   const [newAvatar, setNewAvatar] = useState(PROFILE_AVATARS[0]);
   const [newColor, setNewColor] = useState(PROFILE_COLORS[0]);
   const [saving, setSaving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     getProfiles().then((data) => {
@@ -67,28 +68,50 @@ export default function ProfileSelectPage() {
         <div className="text-5xl mb-3">📚</div>
         <h1 className="text-3xl font-black text-gray-900">스스로 학습</h1>
         <p className="text-gray-500 mt-1">누구세요?</p>
+        {profiles.length > 0 && (
+          <button
+            onClick={() => setEditMode((v) => !v)}
+            className="mt-2 text-xs text-gray-400 underline"
+          >
+            {editMode ? "완료" : "편집"}
+          </button>
+        )}
       </div>
 
       {/* Profile Cards */}
       <div className="space-y-3 mb-6">
         {profiles.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => handleSelect(p)}
-            className="w-full flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm hover:shadow-md active:scale-98 transition-all"
-          >
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-md"
-              style={{ backgroundColor: p.color + "22", border: `3px solid ${p.color}` }}
+          <div key={p.id} className="flex items-center gap-2">
+            {editMode && (
+              <button
+                onClick={async () => {
+                  if (confirm(`"${p.name}" 프로필을 삭제할까요?`)) {
+                    await deleteProfile(p.id);
+                    setProfiles((prev) => prev.filter((x) => x.id !== p.id));
+                  }
+                }}
+                className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center text-lg shrink-0"
+              >
+                −
+              </button>
+            )}
+            <button
+              onClick={() => !editMode && handleSelect(p)}
+              className="flex-1 flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm hover:shadow-md transition-all"
             >
-              {p.avatar}
-            </div>
-            <div className="text-left">
-              <div className="font-bold text-gray-900 text-lg">{p.name}</div>
-              <div className="text-sm text-gray-400">탭해서 입장</div>
-            </div>
-            <div className="ml-auto text-gray-300 text-2xl">›</div>
-          </button>
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-md"
+                style={{ backgroundColor: p.color + "22", border: `3px solid ${p.color}` }}
+              >
+                {p.avatar}
+              </div>
+              <div className="text-left">
+                <div className="font-bold text-gray-900 text-lg">{p.name}</div>
+                <div className="text-sm text-gray-400">{editMode ? "삭제하려면 − 버튼" : "탭해서 입장"}</div>
+              </div>
+              {!editMode && <div className="ml-auto text-gray-300 text-2xl">›</div>}
+            </button>
+          </div>
         ))}
       </div>
 
