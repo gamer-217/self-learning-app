@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/", label: "홈", icon: "🏠" },
+  { href: "/home", label: "홈", icon: "🏠" },
   { href: "/timer", label: "타이머", icon: "⏱️" },
   { href: "/goals", label: "목표", icon: "🎯" },
   { href: "/rewards", label: "보상", icon: "🏆" },
@@ -11,6 +11,7 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  if (pathname === "/" || pathname === "/parent") return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">

@@ -5,37 +5,56 @@ export interface Subject {
   icon: string;
 }
 
-export interface Goal {
-  id: string;
-  subjectId: string;
-  title: string;
-  targetMinutes: number;
-  deadline: string; // ISO date string
-  completed: boolean;
-  createdAt: string;
-}
-
-export interface StudySession {
-  id: string;
-  subjectId: string;
-  date: string; // YYYY-MM-DD
-  duration: number; // minutes
-  note: string;
-}
-
-export interface Badge {
+export interface BadgeDef {
   id: string;
   name: string;
   description: string;
   icon: string;
-  unlockedAt: string | null;
 }
 
-export interface UserData {
+export interface Profile {
+  id: string;
   name: string;
+  avatar: string;
+  color: string;
+}
+
+export interface UserStats {
+  profile_id: string;
   level: number;
   points: number;
-  totalMinutes: number;
-  streakDays: number;
-  lastStudyDate: string | null;
+  total_minutes: number;
+  streak_days: number;
+  last_study_date: string | null;
+}
+
+export interface StudySession {
+  id: string;
+  profile_id: string;
+  subject_id: string;
+  subject_name: string;
+  subject_icon: string;
+  subject_color: string;
+  date: string;
+  duration: number;
+  note: string;
+}
+
+export interface Goal {
+  id: string;
+  profile_id: string;
+  subject_id: string;
+  subject_name: string;
+  subject_icon: string;
+  subject_color: string;
+  title: string;
+  target_minutes: number;
+  deadline: string;
+  completed: boolean;
+}
+
+export interface UnlockedBadge {
+  profile_id: string;
+  badge_id: string;
+  unlocked_at: string;
 }

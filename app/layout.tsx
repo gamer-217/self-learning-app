@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import { ProfileProvider } from "@/context/ProfileContext";
 
 export const metadata: Metadata = {
   title: "스스로 학습",
@@ -11,10 +12,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className="bg-gray-50 min-h-screen antialiased">
-        <div className="max-w-md mx-auto pb-20">
-          {children}
-        </div>
-        <Navigation />
+        <ProfileProvider>
+          <div className="max-w-md mx-auto pb-20">
+            {children}
+          </div>
+          <Navigation />
+        </ProfileProvider>
       </body>
     </html>
   );
