@@ -8,7 +8,8 @@ export async function getProfiles(): Promise<Profile[]> {
 }
 
 export async function createProfile(p: Omit<Profile, "id">): Promise<Profile | null> {
-  const { data } = await supabase.from("profiles").insert(p).select().single();
+  const { data, error } = await supabase.from("profiles").insert(p).select().single();
+  if (error) throw new Error(error.message);
   if (data) {
     await supabase.from("user_stats").insert({ profile_id: data.id });
   }

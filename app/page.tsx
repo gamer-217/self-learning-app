@@ -29,18 +29,28 @@ export default function ProfileSelectPage() {
     router.push("/home");
   };
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleAdd = async () => {
     if (!newName.trim()) return;
     setSaving(true);
-    const p = await createProfile({ name: newName.trim(), avatar: newAvatar, color: newColor });
-    if (p) {
-      setProfiles((prev) => [...prev, p]);
-      setNewName("");
-      setNewAvatar(PROFILE_AVATARS[0]);
-      setNewColor(PROFILE_COLORS[0]);
-      setShowAdd(false);
+    setError(null);
+    try {
+      const p = await createProfile({ name: newName.trim(), avatar: newAvatar, color: newColor });
+      if (p) {
+        setProfiles((prev) => [...prev, p]);
+        setNewName("");
+        setNewAvatar(PROFILE_AVATARS[0]);
+        setNewColor(PROFILE_COLORS[0]);
+        setShowAdd(false);
+      } else {
+        setError("저장에 실패했어요. Supabase 연결을 확인해주세요.");
+      }
+    } catch (e) {
+      setError("오류가 발생했어요: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) {
@@ -138,9 +148,12 @@ export default function ProfileSelectPage() {
             </div>
           </div>
 
+          {error && (
+            <p className="text-sm text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>
+          )}
           <div className="flex gap-2">
             <button
-              onClick={() => setShowAdd(false)}
+              onClick={() => { setShowAdd(false); setError(null); }}
               className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl font-medium"
             >
               취소
