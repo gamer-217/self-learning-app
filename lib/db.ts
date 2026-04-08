@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { Profile, UserStats, StudySession, Goal, UnlockedBadge } from "./types";
+import { Profile, UserStats, StudySession, Goal, UnlockedBadge, ScheduleItem, ScheduleCompletion, LessonTeacher, LessonSession, LessonPayment } from "./types";
 
 // ── Profiles ─────────────────────────────────────────────
 export async function getProfiles(): Promise<Profile[]> {
@@ -122,4 +122,81 @@ export async function unlockBadge(profileId: string, badgeId: string): Promise<b
     .from("unlocked_badges")
     .insert({ profile_id: profileId, badge_id: badgeId });
   return !error;
+}
+
+// ── Schedule Items ─────────────────────────────────────────
+export async function getScheduleItems(): Promise<ScheduleItem[]> {
+  const { data } = await supabase.from("schedule_items").select("*").order("time_start");
+  return data ?? [];
+}
+
+export async function addScheduleItem(item: Omit<ScheduleItem, "id">): Promise<void> {
+  await supabase.from("schedule_items").insert(item);
+}
+
+export async function deleteScheduleItem(id: string): Promise<void> {
+  await supabase.from("schedule_items").delete().eq("id", id);
+}
+
+// ── Schedule Completions ───────────────────────────────────
+export async function getCompletions(date: string): Promise<ScheduleCompletion[]> {
+  const { data } = await supabase.from("schedule_completions").select("*").eq("date", date);
+  return data ?? [];
+}
+
+export async function toggleCompletion(scheduleId: string, profileId: string, date: string): Promise<void> {
+  const { data } = await supabase
+    .from("schedule_completions")
+    .select("*")
+    .eq("schedule_id", scheduleId)
+    .eq("profile_id", profileId)
+    .eq("date", date)
+    .single();
+  if (data) {
+    await supabase.from("schedule_completions")
+      .delete()
+      .eq("schedule_id", scheduleId)
+      .eq("profile_id", profileId)
+      .eq("date", date);
+  } else {
+    await supabase.from("schedule_completions")
+      .insert({ schedule_id: scheduleId, profile_id: profileId, date });
+  }
+}
+
+// ── Lesson Teachers ────────────────────────────────────────
+export async function getLessonTeachers(): Promise<LessonTeacher[]> {
+  const { data } = await supabase.from("lesson_teachers").select("*").order("created_at");
+  return data ?? [];
+}
+
+export async function createLessonTeacher(t: Omit<LessonTeacher, "id">): Promise<LessonTeacher | null> {
+  const { data } = await supabase.from("lesson_teachers").insert(t).select().single();
+  return data;
+}
+
+// ── Lesson Sessions ────────────────────────────────────────
+export async function getLessonSessions(teacherId: string): Promise<LessonSession[]> {
+  const { data } = await supabase.from("lesson_sessions")
+    .select("*").eq("teacher_id", teacherId).order("lesson_number");
+  return data ?? [];
+}
+
+export async function addLessonSession(s: Omit<LessonSession, "id">): Promise<void> {
+  await supabase.from("lesson_sessions").insert(s);
+}
+
+export async function deleteLessonSession(id: string): Promise<void> {
+  await supabase.from("lesson_sessions").delete().eq("id", id);
+}
+
+// ── Lesson Payments ────────────────────────────────────────
+export async function getLessonPayments(teacherId: string): Promise<LessonPayment[]> {
+  const { data } = await supabase.from("lesson_payments")
+    .select("*").eq("teacher_id", teacherId).order("paid_date");
+  return data ?? [];
+}
+
+export async function addLessonPayment(p: Omit<LessonPayment, "id">): Promise<void> {
+  await supabase.from("lesson_payments").insert(p);
 }

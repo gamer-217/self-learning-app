@@ -58,3 +58,52 @@ export interface UnlockedBadge {
   badge_id: string;
   unlocked_at: string;
 }
+
+export interface ScheduleItem {
+  id: string;
+  title: string;
+  teacher: string;
+  color: string;
+  participants: string[]; // profile names, [] = all
+  type: "weekly" | "once" | "range";
+  weekdays: number[]; // 0=Sun,1=Mon...6=Sat
+  time_start: string;
+  time_end: string;
+  date_start: string;
+  date_end: string;
+  is_completable: boolean;
+}
+
+export interface ScheduleCompletion {
+  schedule_id: string;
+  profile_id: string;
+  date: string;
+}
+
+export interface LessonTeacher {
+  id: string;
+  name: string;
+  subject: string;
+  fee_per_session: number | null;
+  fee_monthly: number | null;
+  payment_day: number | null;
+  notes: string;
+}
+
+export interface LessonSession {
+  id: string;
+  teacher_id: string;
+  lesson_number: number;
+  date: string;
+  time_start: string;
+  participants: string[];
+  notes: string;
+}
+
+export interface LessonPayment {
+  id: string;
+  teacher_id: string;
+  amount: number;
+  paid_date: string;
+  note: string;
+}

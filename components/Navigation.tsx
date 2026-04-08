@@ -4,8 +4,8 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/home", label: "홈", icon: "🏠" },
-  { href: "/timer", label: "타이머", icon: "⏱️" },
-  { href: "/goals", label: "목표", icon: "🎯" },
+  { href: "/schedule", label: "스케줄", icon: "📅" },
+  { href: "/lessons", label: "레슨", icon: "📝" },
   { href: "/rewards", label: "보상", icon: "🏆" },
 ];
 
@@ -19,17 +19,10 @@ export default function Navigation() {
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${
-                active ? "text-indigo-600" : "text-gray-400 hover:text-gray-600"
-              }`}
-            >
+            <Link key={item.href} href={item.href}
+              className={`flex-1 flex flex-col items-center py-3 gap-0.5 transition-colors ${active ? "text-indigo-600" : "text-gray-400 hover:text-gray-600"}`}>
               <span className="text-xl">{item.icon}</span>
-              <span className={`text-xs font-medium ${active ? "text-indigo-600" : ""}`}>
-                {item.label}
-              </span>
+              <span className={`text-xs font-medium ${active ? "text-indigo-600" : ""}`}>{item.label}</span>
             </Link>
           );
         })}
