@@ -48,6 +48,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [selectedKid, setSelectedKid] = useState<string>("전체");
 
   const todayStr = toDateStr(new Date());
 
@@ -72,6 +73,11 @@ export default function SchedulePage() {
     const dow = date.getDay();
     return items
       .filter((item) => {
+        // 아이 필터
+        if (selectedKid !== "전체") {
+          const names = item.participants.length === 0 ? profiles.map(p => p.name) : item.participants;
+          if (!names.includes(selectedKid)) return false;
+        }
         if (item.type === "weekly") return item.weekdays.includes(dow);
         if (item.type === "once") return item.date_start === ds;
         if (item.type === "range")
@@ -188,6 +194,21 @@ export default function SchedulePage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Kid filter tabs */}
+      <div className="flex gap-2">
+        {["전체", ...profiles.map(p => p.name)].map((name) => {
+          const p = profiles.find(p => p.name === name);
+          const active = selectedKid === name;
+          return (
+            <button key={name} onClick={() => setSelectedKid(name)}
+              className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${active ? "text-white shadow-md" : "bg-white text-gray-500 shadow-sm"}`}
+              style={active ? { backgroundColor: p?.color ?? "#6366f1" } : {}}>
+              {name === "전체" ? "👨‍👩‍👧‍👦 전체" : `${p?.avatar ?? ""} ${name}`}
+            </button>
+          );
+        })}
       </div>
 
       {/* View tabs */}
