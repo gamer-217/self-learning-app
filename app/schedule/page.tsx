@@ -55,6 +55,15 @@ export default function SchedulePage() {
   const [overrideType, setOverrideType] = useState<"add" | "cancel" | "modify">("add");
   const [overrideTarget, setOverrideTarget] = useState<ScheduleItem | null>(null);
   const [overrideForm, setOverrideForm] = useState({ title: "", teacher: "", color: "#6366f1", participants: [] as string[], time_start: "", time_end: "", note: "" });
+  const [showNewItemForm, setShowNewItemForm] = useState(false);
+  const [newItem, setNewItem] = useState({
+    title: "", teacher: "", color: "#6366f1", participants: [] as string[],
+    type: "range" as "weekly" | "once" | "range",
+    weekdays: [] as number[],
+    time_start: "", time_end: "",
+    date_start: "", date_end: "2099-12-31",
+    is_completable: false,
+  });
 
   const todayStr = toDateStr(new Date());
 
@@ -141,6 +150,14 @@ export default function SchedulePage() {
     setSeeding(false);
   };
 
+  const handleAddNewItem = async () => {
+    if (!newItem.title || !newItem.date_start) return;
+    await addScheduleItem(newItem);
+    setItems(await getScheduleItems());
+    setShowNewItemForm(false);
+    setNewItem({ title: "", teacher: "", color: "#6366f1", participants: [], type: "range", weekdays: [], time_start: "", time_end: "", date_start: "", date_end: "2099-12-31", is_completable: false });
+  };
+
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
   const monthDays = useMemo(
     () => getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth()),
@@ -212,6 +229,10 @@ export default function SchedulePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black text-gray-900">📅 스케줄</h1>
         <div className="flex gap-2">
+          <button onClick={() => setShowNewItemForm((v) => !v)}
+            className={`text-xs px-3 py-1.5 rounded-full font-bold ${showNewItemForm ? "bg-gray-100 text-gray-500" : "bg-indigo-600 text-white"}`}>
+            {showNewItemForm ? "취소" : "＋ 새 일정"}
+          </button>
           {items.length > 0 && (
             <button onClick={() => setEditMode((v) => !v)}
               className={`text-xs px-3 py-1.5 rounded-full border ${editMode ? "bg-red-50 border-red-300 text-red-500" : "border-gray-200 text-gray-400"}`}>
@@ -220,12 +241,128 @@ export default function SchedulePage() {
           )}
           {items.length === 0 && (
             <button onClick={handleSeed} disabled={seeding}
-              className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-full disabled:opacity-50">
-              {seeding ? "불러오는 중..." : "📥 기본 스케줄 불러오기"}
+              className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full disabled:opacity-50">
+              {seeding ? "불러오는 중..." : "📥 기본 데이터"}
             </button>
           )}
         </div>
       </div>
+
+      {/* 새 일정 추가 폼 */}
+      {showNewItemForm && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+          <h3 className="font-black text-gray-800">새 고정 일정 추가</h3>
+          <input value={newItem.title} onChange={e => setNewItem(v => ({ ...v, title: e.target.value }))}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="일정 이름 (예: 수학학원)" />
+          <input value={newItem.teacher} onChange={e => setNewItem(v => ({ ...v, teacher: e.target.value }))}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="선생님 / 장소 (선택)" />
+
+          {/* 반복 유형 */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block font-semibold">반복</label>
+            <div className="flex gap-2">
+              {([["weekly", "매주"], ["range", "기간"], ["once", "1회"]] as const).map(([t, label]) => (
+                <button key={t} onClick={() => setNewItem(v => ({ ...v, type: t }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${newItem.type === t ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 요일 선택 (매주/기간) */}
+          {(newItem.type === "weekly" || newItem.type === "range") && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block font-semibold">
+                요일 {newItem.type === "range" ? "(비우면 매일)" : ""}
+              </label>
+              <div className="flex gap-1">
+                {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+                  <button key={i} onClick={() => setNewItem(v => ({
+                    ...v, weekdays: v.weekdays.includes(i) ? v.weekdays.filter(x => x !== i) : [...v.weekdays, i]
+                  }))}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${newItem.weekdays.includes(i) ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"} ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : ""}`}
+                    style={newItem.weekdays.includes(i) ? {} : {}}>
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 시작일/종료일 */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-gray-500 mb-1 block font-semibold">시작일</label>
+              <input type="date" value={newItem.date_start} onChange={e => setNewItem(v => ({ ...v, date_start: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+            </div>
+            {newItem.type !== "once" && (
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 mb-1 block font-semibold">종료일 (없으면 비워요)</label>
+                <input type="date" value={newItem.date_end === "2099-12-31" ? "" : newItem.date_end}
+                  onChange={e => setNewItem(v => ({ ...v, date_end: e.target.value || "2099-12-31" }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+              </div>
+            )}
+          </div>
+
+          {/* 시간 */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-gray-500 mb-1 block font-semibold">시작 시간</label>
+              <input type="time" value={newItem.time_start} onChange={e => setNewItem(v => ({ ...v, time_start: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-gray-500 mb-1 block font-semibold">종료 시간</label>
+              <input type="time" value={newItem.time_end} onChange={e => setNewItem(v => ({ ...v, time_end: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+            </div>
+          </div>
+
+          {/* 참여 아이들 */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block font-semibold">참여 아이들 (비우면 전체)</label>
+            <div className="flex gap-2">
+              {profiles.map(p => (
+                <button key={p.id} onClick={() => setNewItem(v => ({
+                  ...v, participants: v.participants.includes(p.name)
+                    ? v.participants.filter(n => n !== p.name)
+                    : [...v.participants, p.name]
+                }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${newItem.participants.includes(p.name) ? "text-white" : "bg-gray-100 text-gray-500"}`}
+                  style={newItem.participants.includes(p.name) ? { backgroundColor: p.color } : {}}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 색상 */}
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block font-semibold">색상</label>
+            <div className="flex gap-2">
+              {["#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4"].map(c => (
+                <button key={c} onClick={() => setNewItem(v => ({ ...v, color: c }))}
+                  className={`w-8 h-8 rounded-full transition-all ${newItem.color === c ? "ring-2 ring-offset-2 ring-gray-400 scale-110" : ""}`}
+                  style={{ backgroundColor: c }} />
+              ))}
+            </div>
+          </div>
+
+          {/* 완료 체크 여부 */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={newItem.is_completable}
+              onChange={e => setNewItem(v => ({ ...v, is_completable: e.target.checked }))}
+              className="w-4 h-4 rounded accent-indigo-600" />
+            <span className="text-sm text-gray-700">완료 체크 가능 (숙제, 과제 등)</span>
+          </label>
+
+          <button onClick={handleAddNewItem}
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black text-sm">저장</button>
+        </div>
+      )}
 
       {/* Kid filter tabs */}
       <div className="flex gap-1.5">
