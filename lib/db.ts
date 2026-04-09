@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { Profile, UserStats, StudySession, Goal, UnlockedBadge, ScheduleItem, ScheduleCompletion, LessonTeacher, LessonSession, LessonPayment } from "./types";
+import { Profile, UserStats, StudySession, Goal, UnlockedBadge, ScheduleItem, ScheduleCompletion, LessonTeacher, LessonSession, LessonPayment, ScheduleOverride } from "./types";
 
 // ── Profiles ─────────────────────────────────────────────
 export async function getProfiles(): Promise<Profile[]> {
@@ -199,4 +199,18 @@ export async function getLessonPayments(teacherId: string): Promise<LessonPaymen
 
 export async function addLessonPayment(p: Omit<LessonPayment, "id">): Promise<void> {
   await supabase.from("lesson_payments").insert(p);
+}
+
+// ── Schedule Overrides ─────────────────────────────────────
+export async function getOverridesForDate(date: string): Promise<ScheduleOverride[]> {
+  const { data } = await supabase.from("schedule_overrides").select("*").eq("date", date);
+  return data ?? [];
+}
+
+export async function addOverride(o: Omit<ScheduleOverride, "id">): Promise<void> {
+  await supabase.from("schedule_overrides").insert(o);
+}
+
+export async function deleteOverride(id: string): Promise<void> {
+  await supabase.from("schedule_overrides").delete().eq("id", id);
 }

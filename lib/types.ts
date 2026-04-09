@@ -107,3 +107,17 @@ export interface LessonPayment {
   paid_date: string;
   note: string;
 }
+
+export interface ScheduleOverride {
+  id: string;
+  date: string;
+  schedule_id: string | null; // null for 'add' type
+  type: "add" | "cancel" | "modify";
+  title: string;
+  teacher: string;
+  color: string;
+  participants: string[];
+  time_start: string;
+  time_end: string;
+  note: string;
+}

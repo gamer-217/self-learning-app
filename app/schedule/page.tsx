@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getScheduleItems, addScheduleItem, deleteScheduleItem,
   getCompletions, toggleCompletion, getProfiles,
+  getOverridesForDate, addOverride, deleteOverride,
 } from "@/lib/db";
-import { ScheduleItem, ScheduleCompletion, Profile } from "@/lib/types";
+import { ScheduleItem, ScheduleCompletion, Profile, ScheduleOverride } from "@/lib/types";
 import { DEFAULT_SCHEDULES } from "@/lib/scheduleData";
 import { useProfile } from "@/context/ProfileContext";
 
@@ -49,15 +50,21 @@ export default function SchedulePage() {
   const [seeding, setSeeding] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedKid, setSelectedKid] = useState<string>("전체");
+  const [overrides, setOverrides] = useState<ScheduleOverride[]>([]);
+  const [showOverrideForm, setShowOverrideForm] = useState(false);
+  const [overrideType, setOverrideType] = useState<"add" | "cancel" | "modify">("add");
+  const [overrideTarget, setOverrideTarget] = useState<ScheduleItem | null>(null);
+  const [overrideForm, setOverrideForm] = useState({ title: "", teacher: "", color: "#6366f1", participants: [] as string[], time_start: "", time_end: "", note: "" });
 
   const todayStr = toDateStr(new Date());
 
   useEffect(() => {
-    Promise.all([getScheduleItems(), getProfiles(), getCompletions(todayStr)]).then(
-      ([its, prs, comps]) => {
+    Promise.all([getScheduleItems(), getProfiles(), getCompletions(todayStr), getOverridesForDate(todayStr)]).then(
+      ([its, prs, comps, ovs]) => {
         setItems(its);
         setProfiles(prs);
         setCompletions(comps);
+        setOverrides(ovs);
         setLoading(false);
       }
     );
@@ -66,6 +73,33 @@ export default function SchedulePage() {
   const loadCompletions = async (date: string) => {
     const c = await getCompletions(date);
     setCompletions((prev) => [...prev.filter((x) => x.date !== date), ...c]);
+  };
+
+  const loadOverrides = async (date: string) => {
+    const o = await getOverridesForDate(date);
+    setOverrides((prev) => [...prev.filter((x) => x.date !== date), ...o]);
+  };
+
+  const handleAddOverride = async () => {
+    const ds = toDateStr(currentDate);
+    if (overrideType === "add" && !overrideForm.title) return;
+    if ((overrideType === "cancel" || overrideType === "modify") && !overrideTarget) return;
+    await addOverride({
+      date: ds,
+      schedule_id: overrideTarget?.id ?? null,
+      type: overrideType,
+      title: overrideType === "add" ? overrideForm.title : (overrideTarget?.title ?? ""),
+      teacher: overrideType === "add" ? overrideForm.teacher : (overrideTarget?.teacher ?? ""),
+      color: overrideType === "add" ? overrideForm.color : (overrideTarget?.color ?? "#6366f1"),
+      participants: overrideType === "add" ? overrideForm.participants : (overrideTarget?.participants ?? []),
+      time_start: overrideForm.time_start || (overrideTarget?.time_start ?? ""),
+      time_end: overrideForm.time_end || (overrideTarget?.time_end ?? ""),
+      note: overrideForm.note,
+    });
+    setShowOverrideForm(false);
+    setOverrideTarget(null);
+    setOverrideForm({ title: "", teacher: "", color: "#6366f1", participants: [], time_start: "", time_end: "", note: "" });
+    await loadOverrides(ds);
   };
 
   const getEventsForDate = (date: Date): ScheduleItem[] => {
@@ -236,15 +270,147 @@ export default function SchedulePage() {
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 1); setCurrentDate(d); }}
               className="p-2 text-gray-400 text-xl">›</button>
           </div>
-          {dailyEvents.length === 0 ? (
+          {/* 일정 변경 버튼 */}
+          <div className="flex gap-2">
+            <button onClick={() => { setOverrideType("add"); setOverrideTarget(null); setShowOverrideForm(true); }}
+              className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold">
+              + 일정 추가
+            </button>
+            {dailyEvents.length > 0 && (
+              <>
+                <button onClick={() => { setOverrideType("cancel"); setShowOverrideForm(true); }}
+                  className="flex-1 py-2 bg-red-100 text-red-600 rounded-xl text-sm font-bold">
+                  ✕ 일정 취소
+                </button>
+                <button onClick={() => { setOverrideType("modify"); setShowOverrideForm(true); }}
+                  className="flex-1 py-2 bg-amber-100 text-amber-600 rounded-xl text-sm font-bold">
+                  ✏️ 시간 변경
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* 일정 변경 폼 */}
+          {showOverrideForm && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <h3 className="font-bold text-gray-800">
+                {overrideType === "add" ? "➕ 일정 추가" : overrideType === "cancel" ? "✕ 일정 취소" : "✏️ 시간 변경"}
+              </h3>
+
+              {/* 기존 일정 선택 (취소/변경 시) */}
+              {(overrideType === "cancel" || overrideType === "modify") && (
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">어떤 일정?</label>
+                  <div className="space-y-1">
+                    {dailyEvents.map((item) => {
+                      const cancelled = overrides.some(o => o.schedule_id === item.id && o.type === "cancel" && o.date === dateStr);
+                      if (cancelled) return null;
+                      return (
+                        <button key={item.id} onClick={() => setOverrideTarget(item)}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-all ${overrideTarget?.id === item.id ? "text-white" : "bg-gray-50 text-gray-700"}`}
+                          style={overrideTarget?.id === item.id ? { backgroundColor: item.color } : {}}>
+                          {item.title} {item.time_start && `(${item.time_start})`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 새 일정 제목/선생님 (추가 시) */}
+              {overrideType === "add" && (
+                <>
+                  <input value={overrideForm.title} onChange={e => setOverrideForm(v => ({ ...v, title: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="일정 제목" />
+                  <input value={overrideForm.teacher} onChange={e => setOverrideForm(v => ({ ...v, teacher: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="선생님 (선택)" />
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">참여 아이들</label>
+                    <div className="flex gap-2">
+                      {profiles.map(p => (
+                        <button key={p.id} onClick={() => setOverrideForm(v => ({
+                          ...v, participants: v.participants.includes(p.name)
+                            ? v.participants.filter(n => n !== p.name)
+                            : [...v.participants, p.name]
+                        }))}
+                          className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${overrideForm.participants.includes(p.name) ? "text-white" : "bg-gray-100 text-gray-500"}`}
+                          style={overrideForm.participants.includes(p.name) ? { backgroundColor: p.color } : {}}>
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 시간 (추가/변경 시) */}
+              {overrideType !== "cancel" && (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 mb-1 block">시작 시간</label>
+                    <input type="time" value={overrideForm.time_start} onChange={e => setOverrideForm(v => ({ ...v, time_start: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 mb-1 block">종료 시간</label>
+                    <input type="time" value={overrideForm.time_end} onChange={e => setOverrideForm(v => ({ ...v, time_end: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              )}
+
+              <input value={overrideForm.note} onChange={e => setOverrideForm(v => ({ ...v, note: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" placeholder="메모 (선택)" />
+
+              <div className="flex gap-2">
+                <button onClick={() => { setShowOverrideForm(false); setOverrideTarget(null); }}
+                  className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">취소</button>
+                <button onClick={handleAddOverride}
+                  className="flex-1 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold">저장</button>
+              </div>
+            </div>
+          )}
+
+          {/* 오버라이드 표시 */}
+          {overrides.filter(o => o.date === dateStr).length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-gray-500">오늘의 변경사항</div>
+              {overrides.filter(o => o.date === dateStr).map(o => (
+                <div key={o.id} className={`flex items-center gap-3 p-3 rounded-xl ${o.type === "cancel" ? "bg-red-50 border border-red-200" : o.type === "modify" ? "bg-amber-50 border border-amber-200" : "bg-green-50 border border-green-200"}`}>
+                  <span className="text-lg">{o.type === "cancel" ? "✕" : o.type === "modify" ? "✏️" : "➕"}</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-gray-800">{o.title}</div>
+                    <div className="text-xs text-gray-500">
+                      {o.type === "cancel" ? "취소됨" : o.type === "modify" ? `시간변경: ${o.time_start}${o.time_end ? `~${o.time_end}` : ""}` : `추가: ${o.time_start || "시간미정"}`}
+                      {o.note && ` · ${o.note}`}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteOverride(o.id).then(() => loadOverrides(dateStr))}
+                    className="text-gray-300 hover:text-red-400 text-xl">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 기존 일정 목록 */}
+          {dailyEvents.length === 0 && overrides.filter(o => o.date === dateStr && o.type === "add").length === 0 ? (
             <div className="text-center py-10 text-gray-400 bg-white rounded-2xl">
               이 날은 일정이 없어요
             </div>
           ) : (
             <div className="space-y-3">
-              {dailyEvents.map((item) => (
-                <EventCard key={item.id} item={item} date={dateStr} />
-              ))}
+              {dailyEvents.map((item) => {
+                const cancelled = overrides.some(o => o.schedule_id === item.id && o.type === "cancel" && o.date === dateStr);
+                const modified = overrides.find(o => o.schedule_id === item.id && o.type === "modify" && o.date === dateStr);
+                const displayItem = modified ? { ...item, time_start: modified.time_start, time_end: modified.time_end } : item;
+                return (
+                  <div key={item.id} className={cancelled ? "opacity-40" : ""}>
+                    {cancelled && <div className="text-xs text-red-500 font-medium mb-1 ml-1">⛔ 오늘 취소됨</div>}
+                    {modified && <div className="text-xs text-amber-500 font-medium mb-1 ml-1">✏️ 시간 변경됨</div>}
+                    <EventCard item={displayItem} date={dateStr} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
