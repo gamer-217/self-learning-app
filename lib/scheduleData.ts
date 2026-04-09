@@ -129,6 +129,66 @@ export const DEFAULT_SCHEDULES: Omit<ScheduleItem, "id">[] = [
   },
 ];
 
+// 4월 10-11일 특별 일정
+export const APRIL_EVENTS: Omit<ScheduleItem, "id">[] = [
+  // 지아 청소년 1차캠프 4/10-11 (종일)
+  {
+    title: "청소년 1차캠프",
+    teacher: "",
+    color: "#10b981",
+    participants: ["지아"],
+    type: "range",
+    weekdays: [],
+    time_start: "",
+    time_end: "",
+    date_start: "2026-04-10",
+    date_end: "2026-04-11",
+    is_completable: false,
+  },
+  // 주원 캠프 4/10 저녁 참가
+  {
+    title: "청소년 1차캠프",
+    teacher: "",
+    color: "#10b981",
+    participants: ["주원"],
+    type: "once",
+    weekdays: [],
+    time_start: "18:00",
+    time_end: "",
+    date_start: "2026-04-10",
+    date_end: "2026-04-10",
+    is_completable: false,
+  },
+  // 주원 ITQ 시험 4/11 10:00
+  {
+    title: "ITQ 한글 자격증 시험",
+    teacher: "우송정보대학",
+    color: "#ef4444",
+    participants: ["주원"],
+    type: "once",
+    weekdays: [],
+    time_start: "10:00",
+    time_end: "",
+    date_start: "2026-04-11",
+    date_end: "2026-04-11",
+    is_completable: true,
+  },
+  // 예원 어린이 비전스쿨 4/11 10:00-14:00
+  {
+    title: "어린이 비전스쿨",
+    teacher: "",
+    color: "#f59e0b",
+    participants: ["예원"],
+    type: "once",
+    weekdays: [],
+    time_start: "10:00",
+    time_end: "14:00",
+    date_start: "2026-04-11",
+    date_end: "2026-04-11",
+    is_completable: false,
+  },
+];
+
 export const DEFAULT_TEACHERS: Omit<LessonTeacher, "id">[] = [
   {
     name: "조재용 원장님",

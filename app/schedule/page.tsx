@@ -6,7 +6,7 @@ import {
   getOverridesForDate, addOverride, deleteOverride,
 } from "@/lib/db";
 import { ScheduleItem, ScheduleCompletion, Profile, ScheduleOverride } from "@/lib/types";
-import { DEFAULT_SCHEDULES } from "@/lib/scheduleData";
+import { DEFAULT_SCHEDULES, APRIL_EVENTS } from "@/lib/scheduleData";
 import { useProfile } from "@/context/ProfileContext";
 
 const DAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -158,6 +158,16 @@ export default function SchedulePage() {
     setNewItem({ title: "", teacher: "", color: "#6366f1", participants: [], type: "range", weekdays: [], time_start: "", time_end: "", date_start: "", date_end: "2099-12-31", is_completable: false });
   };
 
+  const [seedingApril, setSeedingApril] = useState(false);
+  const handleSeedApril = async () => {
+    setSeedingApril(true);
+    for (const s of APRIL_EVENTS) {
+      await addScheduleItem(s);
+    }
+    setItems(await getScheduleItems());
+    setSeedingApril(false);
+  };
+
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
   const monthDays = useMemo(
     () => getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth()),
@@ -239,6 +249,10 @@ export default function SchedulePage() {
               {editMode ? "완료" : "편집"}
             </button>
           )}
+          <button onClick={handleSeedApril} disabled={seedingApril}
+            className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-full font-bold disabled:opacity-50">
+            {seedingApril ? "추가중..." : "🗓️ 4월 특별일정"}
+          </button>
           {items.length === 0 && (
             <button onClick={handleSeed} disabled={seeding}
               className="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full disabled:opacity-50">
@@ -257,32 +271,34 @@ export default function SchedulePage() {
           <input value={newItem.teacher} onChange={e => setNewItem(v => ({ ...v, teacher: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="선생님 / 장소 (선택)" />
 
-          {/* 반복 유형 */}
+          {/* 일정 유형 탭 */}
           <div>
-            <label className="text-xs text-gray-500 mb-1 block font-semibold">반복</label>
-            <div className="flex gap-2">
-              {([["weekly", "매주"], ["range", "기간"], ["once", "1회"]] as const).map(([t, label]) => (
+            <label className="text-xs text-gray-500 mb-1.5 block font-semibold">일정 유형</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["weekly", "📅 매주 반복", "월수금처럼 매주 고정"],
+                ["range", "🏕️ 캠프 / 기간", "며칠씩 이어지는 일정"],
+                ["once", "1️⃣ 단 1회", "특정 날 딱 한번"],
+              ] as const).map(([t, label, sub]) => (
                 <button key={t} onClick={() => setNewItem(v => ({ ...v, type: t }))}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${newItem.type === t ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
-                  {label}
+                  className={`py-2.5 px-3 rounded-xl text-left transition-all border-2 ${newItem.type === t ? "border-indigo-500 bg-indigo-50" : "border-gray-100 bg-gray-50"} ${t === "once" ? "col-span-2" : ""}`}>
+                  <div className={`text-sm font-bold ${newItem.type === t ? "text-indigo-700" : "text-gray-700"}`}>{label}</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{sub}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 요일 선택 (매주/기간) */}
-          {(newItem.type === "weekly" || newItem.type === "range") && (
+          {/* 요일 선택 (매주만) */}
+          {newItem.type === "weekly" && (
             <div>
-              <label className="text-xs text-gray-500 mb-1 block font-semibold">
-                요일 {newItem.type === "range" ? "(비우면 매일)" : ""}
-              </label>
+              <label className="text-xs text-gray-500 mb-1 block font-semibold">요일</label>
               <div className="flex gap-1">
                 {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
                   <button key={i} onClick={() => setNewItem(v => ({
                     ...v, weekdays: v.weekdays.includes(i) ? v.weekdays.filter(x => x !== i) : [...v.weekdays, i]
                   }))}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${newItem.weekdays.includes(i) ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"} ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : ""}`}
-                    style={newItem.weekdays.includes(i) ? {} : {}}>
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${newItem.weekdays.includes(i) ? "bg-indigo-600 text-white" : i === 0 ? "bg-red-50 text-red-400" : i === 6 ? "bg-blue-50 text-blue-400" : "bg-gray-100 text-gray-500"}`}>
                     {d}
                   </button>
                 ))}
@@ -293,13 +309,15 @@ export default function SchedulePage() {
           {/* 시작일/종료일 */}
           <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-xs text-gray-500 mb-1 block font-semibold">시작일</label>
+              <label className="text-xs text-gray-500 mb-1 block font-semibold">
+                {newItem.type === "once" ? "날짜" : "시작일"}
+              </label>
               <input type="date" value={newItem.date_start} onChange={e => setNewItem(v => ({ ...v, date_start: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
             </div>
-            {newItem.type !== "once" && (
+            {newItem.type === "range" && (
               <div className="flex-1">
-                <label className="text-xs text-gray-500 mb-1 block font-semibold">종료일 (없으면 비워요)</label>
+                <label className="text-xs text-gray-500 mb-1 block font-semibold">마지막날 (없으면 무기한)</label>
                 <input type="date" value={newItem.date_end === "2099-12-31" ? "" : newItem.date_end}
                   onChange={e => setNewItem(v => ({ ...v, date_end: e.target.value || "2099-12-31" }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
@@ -307,19 +325,30 @@ export default function SchedulePage() {
             )}
           </div>
 
-          {/* 시간 */}
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="text-xs text-gray-500 mb-1 block font-semibold">시작 시간</label>
-              <input type="time" value={newItem.time_start} onChange={e => setNewItem(v => ({ ...v, time_start: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+          {/* 종일 토글 */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox"
+              checked={newItem.time_start === "" && newItem.time_end === ""}
+              onChange={e => setNewItem(v => ({ ...v, time_start: e.target.checked ? "" : "", time_end: "" }))}
+              className="w-4 h-4 rounded accent-indigo-600" />
+            <span className="text-sm font-semibold text-gray-700">종일 (캠프, 여행 등 시간 없음)</span>
+          </label>
+
+          {/* 시간 (종일 아닐 때) */}
+          {!(newItem.time_start === "" && newItem.time_end === "") || newItem.time_start !== "" ? (
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 mb-1 block font-semibold">시작 시간</label>
+                <input type="time" value={newItem.time_start} onChange={e => setNewItem(v => ({ ...v, time_start: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 mb-1 block font-semibold">종료 시간</label>
+                <input type="time" value={newItem.time_end} onChange={e => setNewItem(v => ({ ...v, time_end: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="text-xs text-gray-500 mb-1 block font-semibold">종료 시간</label>
-              <input type="time" value={newItem.time_end} onChange={e => setNewItem(v => ({ ...v, time_end: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" />
-            </div>
-          </div>
+          ) : null}
 
           {/* 참여 아이들 */}
           <div>
