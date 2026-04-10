@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import {
-  getLessonTeachers, createLessonTeacher,
+  getLessonTeachers, createLessonTeacher, updateLessonTeacher, deleteLessonTeacher,
   getLessonSessions, addLessonSession, deleteLessonSession,
   getLessonPayments, addLessonPayment,
 } from "@/lib/db";
@@ -21,9 +21,15 @@ export default function LessonsPage() {
   const [showAddSession, setShowAddSession] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showAddTeacher, setShowAddTeacher] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<LessonTeacher | null>(null);
   const [newSession, setNewSession] = useState({ date: "", time_start: "", participants: [...ALL_KIDS], notes: "" });
   const [newPayment, setNewPayment] = useState({ amount: "", paid_date: "", note: "" } as { amount: string | number; paid_date: string; note: string });
   const [newTeacher, setNewTeacher] = useState({
+    name: "", subject: "", notes: "",
+    feeType: "session" as "session" | "monthly",
+    fee: "", payment_day: "",
+  });
+  const [editForm, setEditForm] = useState({
     name: "", subject: "", notes: "",
     feeType: "session" as "session" | "monthly",
     fee: "", payment_day: "",
@@ -74,6 +80,39 @@ export default function LessonsPage() {
     }
     await loadAll();
     setSeedingJiah(false);
+  };
+
+  const openEditTeacher = (t: LessonTeacher) => {
+    setEditingTeacher(t);
+    setEditForm({
+      name: t.name,
+      subject: t.subject,
+      notes: t.notes,
+      feeType: t.fee_per_session !== null ? "session" : "monthly",
+      fee: String(t.fee_per_session ?? t.fee_monthly ?? ""),
+      payment_day: String(t.payment_day ?? ""),
+    });
+  };
+
+  const handleUpdateTeacher = async () => {
+    if (!editingTeacher) return;
+    await updateLessonTeacher(editingTeacher.id, {
+      name: editForm.name,
+      subject: editForm.subject,
+      notes: editForm.notes,
+      fee_per_session: editForm.feeType === "session" && editForm.fee ? Number(editForm.fee) : null,
+      fee_monthly: editForm.feeType === "monthly" && editForm.fee ? Number(editForm.fee) : null,
+      payment_day: editForm.payment_day ? Number(editForm.payment_day) : null,
+    });
+    setEditingTeacher(null);
+    await loadAll();
+  };
+
+  const handleDeleteTeacher = async (id: string) => {
+    if (!confirm("선생님을 삭제하면 레슨 기록과 납부 내역도 모두 삭제돼요. 정말 삭제할까요?")) return;
+    await deleteLessonTeacher(id);
+    setSelectedId(null);
+    await loadAll();
   };
 
   const handleAddTeacher = async () => {
@@ -228,10 +267,58 @@ export default function LessonsPage() {
 
       {teacher && (
         <>
+          {/* 수정 폼 */}
+          {editingTeacher?.id === teacher.id && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+              <h3 className="font-black text-gray-800">선생님 정보 수정</h3>
+              <input value={editForm.name} onChange={e => setEditForm(v => ({ ...v, name: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="이름" />
+              <input value={editForm.subject} onChange={e => setEditForm(v => ({ ...v, subject: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="과목/학원명" />
+              <div className="flex gap-2">
+                <button onClick={() => setEditForm(v => ({ ...v, feeType: "session" }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold ${editForm.feeType === "session" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
+                  회당 결제
+                </button>
+                <button onClick={() => setEditForm(v => ({ ...v, feeType: "monthly" }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold ${editForm.feeType === "monthly" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
+                  월 정액
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input type="number" value={editForm.fee} onChange={e => setEditForm(v => ({ ...v, fee: e.target.value }))}
+                  className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="금액 (원)" />
+                {editForm.feeType === "monthly" && (
+                  <input type="number" min="1" max="31" value={editForm.payment_day}
+                    onChange={e => setEditForm(v => ({ ...v, payment_day: e.target.value }))}
+                    className="w-24 border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="납부일" />
+                )}
+              </div>
+              <input value={editForm.notes} onChange={e => setEditForm(v => ({ ...v, notes: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="메모" />
+              <div className="flex gap-2">
+                <button onClick={() => setEditingTeacher(null)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">취소</button>
+                <button onClick={handleUpdateTeacher}
+                  className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">저장</button>
+              </div>
+            </div>
+          )}
+
           {/* Teacher card */}
           <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="font-bold text-gray-900 text-lg">{teacher.name}</div>
-            <div className="text-sm text-gray-500 mt-0.5">{teacher.subject}</div>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-bold text-gray-900 text-lg">{teacher.name}</div>
+                <div className="text-sm text-gray-500 mt-0.5">{teacher.subject}</div>
+              </div>
+              <div className="flex gap-1">
+                <button onClick={() => openEditTeacher(teacher)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-500 font-bold">✏️ 수정</button>
+                <button onClick={() => handleDeleteTeacher(teacher.id)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 text-red-400 font-bold">삭제</button>
+              </div>
+            </div>
             {teacher.fee_per_session && (
               <div className="mt-2 text-sm flex items-center gap-2">
                 <span>💰</span>

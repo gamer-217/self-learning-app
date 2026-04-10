@@ -175,6 +175,14 @@ export async function createLessonTeacher(t: Omit<LessonTeacher, "id">): Promise
   return data;
 }
 
+export async function updateLessonTeacher(id: string, patch: Partial<Omit<LessonTeacher, "id">>): Promise<void> {
+  await supabase.from("lesson_teachers").update(patch).eq("id", id);
+}
+
+export async function deleteLessonTeacher(id: string): Promise<void> {
+  await supabase.from("lesson_teachers").delete().eq("id", id);
+}
+
 // ── Lesson Sessions ────────────────────────────────────────
 export async function getLessonSessions(teacherId: string): Promise<LessonSession[]> {
   const { data } = await supabase.from("lesson_sessions")
