@@ -189,6 +189,34 @@ export const APRIL_EVENTS: Omit<ScheduleItem, "id">[] = [
   },
 ];
 
+// 지아 추가 레슨 선생님
+export const JIAH_TEACHERS: Omit<LessonTeacher, "id">[] = [
+  {
+    name: "신혜원 선생님",
+    subject: "보컬·퍼포먼스 (본스타학원)",
+    fee_per_session: 50000,
+    fee_monthly: null,
+    payment_day: null,
+    notes: "지아 / 월 40만원 (회당 5만원)",
+  },
+  {
+    name: "정다운 선생님",
+    subject: "피아노 레슨",
+    fee_per_session: 50000,
+    fee_monthly: null,
+    payment_day: null,
+    notes: "지아 / 월 40만원 (회당 5만원)",
+  },
+  {
+    name: "토익학원",
+    subject: "토익 (지아)",
+    fee_per_session: null,
+    fee_monthly: 300000,
+    payment_day: null,
+    notes: "지아 / 월 30만원 (매일 수강)",
+  },
+];
+
 export const DEFAULT_TEACHERS: Omit<LessonTeacher, "id">[] = [
   {
     name: "조재용 원장님",
