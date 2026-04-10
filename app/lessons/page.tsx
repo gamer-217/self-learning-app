@@ -75,8 +75,11 @@ export default function LessonsPage() {
 
   const handleSeedJiah = async () => {
     setSeedingJiah(true);
+    const existing = teachers.map((t) => t.name);
     for (const t of JIAH_TEACHERS) {
-      await createLessonTeacher(t);
+      if (!existing.includes(t.name)) {
+        await createLessonTeacher(t);
+      }
     }
     await loadAll();
     setSeedingJiah(false);
