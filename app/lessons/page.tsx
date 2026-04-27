@@ -27,12 +27,12 @@ export default function LessonsPage() {
   const [newTeacher, setNewTeacher] = useState({
     name: "", subject: "", notes: "",
     feeType: "session" as "session" | "monthly",
-    fee: "", payment_day: "",
+    fee: "", payment_day: "", hours_per_session: "1",
   });
   const [editForm, setEditForm] = useState({
     name: "", subject: "", notes: "",
     feeType: "session" as "session" | "monthly",
-    fee: "", payment_day: "",
+    fee: "", payment_day: "", hours_per_session: "1",
   });
 
   const loadAll = async () => {
@@ -94,6 +94,7 @@ export default function LessonsPage() {
       feeType: t.fee_per_session !== null ? "session" : "monthly",
       fee: String(t.fee_per_session ?? t.fee_monthly ?? ""),
       payment_day: String(t.payment_day ?? ""),
+      hours_per_session: String(t.hours_per_session ?? 1),
     });
   };
 
@@ -106,6 +107,7 @@ export default function LessonsPage() {
       fee_per_session: editForm.feeType === "session" && editForm.fee ? Number(editForm.fee) : null,
       fee_monthly: editForm.feeType === "monthly" && editForm.fee ? Number(editForm.fee) : null,
       payment_day: editForm.payment_day ? Number(editForm.payment_day) : null,
+      hours_per_session: editForm.feeType === "session" && editForm.hours_per_session ? Number(editForm.hours_per_session) : null,
     });
     setEditingTeacher(null);
     await loadAll();
@@ -127,8 +129,9 @@ export default function LessonsPage() {
       fee_per_session: newTeacher.feeType === "session" && newTeacher.fee ? Number(newTeacher.fee) : null,
       fee_monthly: newTeacher.feeType === "monthly" && newTeacher.fee ? Number(newTeacher.fee) : null,
       payment_day: newTeacher.payment_day ? Number(newTeacher.payment_day) : null,
+      hours_per_session: newTeacher.feeType === "session" && newTeacher.hours_per_session ? Number(newTeacher.hours_per_session) : null,
     });
-    setNewTeacher({ name: "", subject: "", notes: "", feeType: "session", fee: "", payment_day: "" });
+    setNewTeacher({ name: "", subject: "", notes: "", feeType: "session", fee: "", payment_day: "", hours_per_session: "1" });
     setShowAddTeacher(false);
     await loadAll();
   };
@@ -164,12 +167,15 @@ export default function LessonsPage() {
   const teacherSessions = selectedId ? (sessions[selectedId] ?? []) : [];
   const teacherPayments = selectedId ? (payments[selectedId] ?? []) : [];
 
+  const fmtN = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(1);
+
   const getStats = (t: LessonTeacher) => {
     const ts = sessions[t.id] ?? [];
     const ps = payments[t.id] ?? [];
     const totalPaid = ps.reduce((a, p) => a + p.amount, 0);
-    const paidSessions = t.fee_per_session ? Math.floor(totalPaid / t.fee_per_session) : 0;
-    const done = ts.length;
+    const sessionHours = t.hours_per_session ?? 1;
+    const paidSessions = t.fee_per_session ? totalPaid / t.fee_per_session : 0;
+    const done = ts.length * sessionHours;
     return { totalPaid, paidSessions, done, remaining: paidSessions - done };
   };
 
@@ -234,11 +240,19 @@ export default function LessonsPage() {
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="text-xs text-gray-500 mb-1 block font-semibold">
-                {newTeacher.feeType === "session" ? "회당 금액 (원)" : "월 금액 (원)"}
+                {newTeacher.feeType === "session" ? "시간당 금액 (원)" : "월 금액 (원)"}
               </label>
               <input type="number" value={newTeacher.fee} onChange={e => setNewTeacher(v => ({ ...v, fee: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="예: 50000" />
             </div>
+            {newTeacher.feeType === "session" && (
+              <div className="flex-1">
+                <label className="text-xs text-gray-500 mb-1 block font-semibold">레슨 시간 (시간/회)</label>
+                <input type="number" step="0.5" min="0.5" value={newTeacher.hours_per_session}
+                  onChange={e => setNewTeacher(v => ({ ...v, hours_per_session: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="예: 1.5" />
+              </div>
+            )}
             {newTeacher.feeType === "monthly" && (
               <div className="flex-1">
                 <label className="text-xs text-gray-500 mb-1 block font-semibold">납부일 (매월)</label>
@@ -291,6 +305,11 @@ export default function LessonsPage() {
               <div className="flex gap-2">
                 <input type="number" value={editForm.fee} onChange={e => setEditForm(v => ({ ...v, fee: e.target.value }))}
                   className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="금액 (원)" />
+                {editForm.feeType === "session" && (
+                  <input type="number" step="0.5" min="0.5" value={editForm.hours_per_session}
+                    onChange={e => setEditForm(v => ({ ...v, hours_per_session: e.target.value }))}
+                    className="w-24 border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="시간/회" />
+                )}
                 {editForm.feeType === "monthly" && (
                   <input type="number" min="1" max="31" value={editForm.payment_day}
                     onChange={e => setEditForm(v => ({ ...v, payment_day: e.target.value }))}
@@ -325,7 +344,10 @@ export default function LessonsPage() {
             {teacher.fee_per_session && (
               <div className="mt-2 text-sm flex items-center gap-2">
                 <span>💰</span>
-                <span>회당 <strong className="text-indigo-600">{teacher.fee_per_session.toLocaleString()}원</strong></span>
+                <span>시간당 <strong className="text-indigo-600">{teacher.fee_per_session.toLocaleString()}원</strong></span>
+                {teacher.hours_per_session && teacher.hours_per_session !== 1 && (
+                  <span className="text-xs bg-indigo-50 text-indigo-500 px-2 py-0.5 rounded-full font-semibold">1회={teacher.hours_per_session}시간</span>
+                )}
                 {teacher.notes && <span className="text-gray-400 text-xs">({teacher.notes})</span>}
               </div>
             )}
@@ -355,9 +377,9 @@ export default function LessonsPage() {
             return (
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { label: "완료", value: `${done}회`, bg: "bg-blue-50", color: "text-blue-600" },
-                  { label: "선지급", value: `${paidSessions}회`, bg: "bg-green-50", color: "text-green-600" },
-                  { label: "잔여", value: `${remaining}회`, bg: remaining <= 2 ? "bg-red-50" : "bg-amber-50", color: remaining <= 2 ? "text-red-500" : "text-amber-500" },
+                  { label: "완료", value: `${fmtN(done)}회`, bg: "bg-blue-50", color: "text-blue-600" },
+                  { label: "선지급", value: `${fmtN(paidSessions)}회`, bg: "bg-green-50", color: "text-green-600" },
+                  { label: "잔여", value: `${fmtN(remaining)}회`, bg: remaining <= 0 ? "bg-red-50" : remaining <= 2 ? "bg-amber-50" : "bg-gray-50", color: remaining <= 0 ? "text-red-500" : remaining <= 2 ? "text-amber-500" : "text-gray-600" },
                   { label: "총납부", value: `${(totalPaid / 10000).toFixed(0)}만`, bg: "bg-gray-50", color: "text-gray-600" },
                 ].map((s) => (
                   <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>

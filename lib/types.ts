@@ -87,6 +87,7 @@ export interface LessonTeacher {
   fee_per_session: number | null;
   fee_monthly: number | null;
   payment_day: number | null;
+  hours_per_session?: number | null;
   notes: string;
 }
 
