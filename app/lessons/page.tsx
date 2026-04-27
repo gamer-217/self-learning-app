@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import {
   getLessonTeachers, createLessonTeacher, updateLessonTeacher, deleteLessonTeacher,
-  getLessonSessions, addLessonSession, deleteLessonSession,
+  getLessonSessions, addLessonSession, updateLessonSession, deleteLessonSession,
   getLessonPayments, addLessonPayment,
 } from "@/lib/db";
 import { LessonTeacher, LessonSession, LessonPayment } from "@/lib/types";
@@ -22,6 +22,8 @@ export default function LessonsPage() {
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<LessonTeacher | null>(null);
+  const [editingSession, setEditingSession] = useState<LessonSession | null>(null);
+  const [editSessionForm, setEditSessionForm] = useState({ date: "", time_start: "", hours: "1", notes: "" });
   const [newSession, setNewSession] = useState({ date: "", time_start: "", hours: "1", participants: [...ALL_KIDS], notes: "" });
   const [newPayment, setNewPayment] = useState({ amount: "", paid_date: "", note: "" } as { amount: string | number; paid_date: string; note: string });
   const [newTeacher, setNewTeacher] = useState({
@@ -144,6 +146,23 @@ export default function LessonsPage() {
     await addLessonSession({ teacher_id: selectedId, lesson_number: nextNum, hours: Number(hours) || 1, ...rest });
     setNewSession({ date: "", time_start: "", hours: "1", participants: [...ALL_KIDS], notes: "" });
     setShowAddSession(false);
+    await loadAll();
+  };
+
+  const openEditSession = (s: LessonSession) => {
+    setEditingSession(s);
+    setEditSessionForm({ date: s.date, time_start: s.time_start, hours: String(s.hours ?? 1), notes: s.notes });
+  };
+
+  const handleUpdateSession = async () => {
+    if (!editingSession) return;
+    await updateLessonSession(editingSession.id, {
+      date: editSessionForm.date,
+      time_start: editSessionForm.time_start,
+      hours: Number(editSessionForm.hours) || 1,
+      notes: editSessionForm.notes,
+    });
+    setEditingSession(null);
     await loadAll();
   };
 
@@ -439,21 +458,50 @@ export default function LessonsPage() {
               ) : (
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {[...teacherSessions].reverse().map((s) => (
-                    <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-black text-xs shrink-0">
-                        {s.lesson_number}회
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-800">{s.date}</div>
-                        <div className="text-xs text-gray-400 truncate">
-                          {s.time_start && `🕐 ${s.time_start} · `}
-                          {`⏱ ${fmtN(s.hours ?? 1)}시간 · `}
-                          {s.participants.join(", ")}
-                          {s.notes && ` · ${s.notes}`}
+                    <div key={s.id} className="border-b border-gray-100 last:border-0">
+                      {editingSession?.id === s.id ? (
+                        <div className="bg-gray-50 rounded-xl p-3 my-1 space-y-2">
+                          <div className="flex gap-2">
+                            <input type="date" value={editSessionForm.date}
+                              onChange={e => setEditSessionForm(v => ({ ...v, date: e.target.value }))}
+                              className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                            <input type="time" value={editSessionForm.time_start}
+                              onChange={e => setEditSessionForm(v => ({ ...v, time_start: e.target.value }))}
+                              className="w-28 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                            <input type="number" step="0.5" min="0.5" value={editSessionForm.hours}
+                              onChange={e => setEditSessionForm(v => ({ ...v, hours: e.target.value }))}
+                              className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder="시간" />
+                          </div>
+                          <input value={editSessionForm.notes}
+                            onChange={e => setEditSessionForm(v => ({ ...v, notes: e.target.value }))}
+                            className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder="메모 (선택)" />
+                          <div className="flex gap-2">
+                            <button onClick={() => setEditingSession(null)}
+                              className="flex-1 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-sm font-bold">취소</button>
+                            <button onClick={handleUpdateSession}
+                              className="flex-1 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-bold">저장</button>
+                          </div>
                         </div>
-                      </div>
-                      <button onClick={() => deleteLessonSession(s.id).then(loadAll)}
-                        className="text-gray-300 hover:text-red-400 text-xl shrink-0">×</button>
+                      ) : (
+                        <div className="flex items-center gap-3 py-2">
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-black text-xs shrink-0">
+                            {s.lesson_number}회
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-gray-800">{s.date}</div>
+                            <div className="text-xs text-gray-400 truncate">
+                              {s.time_start && `🕐 ${s.time_start} · `}
+                              {`⏱ ${fmtN(s.hours ?? 1)}시간 · `}
+                              {s.participants.join(", ")}
+                              {s.notes && ` · ${s.notes}`}
+                            </div>
+                          </div>
+                          <button onClick={() => openEditSession(s)}
+                            className="text-gray-300 hover:text-indigo-400 text-sm shrink-0">✏️</button>
+                          <button onClick={() => deleteLessonSession(s.id).then(loadAll)}
+                            className="text-gray-300 hover:text-red-400 text-xl shrink-0">×</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -194,6 +194,10 @@ export async function addLessonSession(s: Omit<LessonSession, "id">): Promise<vo
   await supabase.from("lesson_sessions").insert(s);
 }
 
+export async function updateLessonSession(id: string, patch: Partial<Omit<LessonSession, "id">>): Promise<void> {
+  await supabase.from("lesson_sessions").update(patch).eq("id", id);
+}
+
 export async function deleteLessonSession(id: string): Promise<void> {
   await supabase.from("lesson_sessions").delete().eq("id", id);
 }
