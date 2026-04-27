@@ -97,6 +97,7 @@ export interface LessonSession {
   lesson_number: number;
   date: string;
   time_start: string;
+  hours?: number;
   participants: string[];
   notes: string;
 }

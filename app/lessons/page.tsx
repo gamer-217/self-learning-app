@@ -22,7 +22,7 @@ export default function LessonsPage() {
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<LessonTeacher | null>(null);
-  const [newSession, setNewSession] = useState({ date: "", time_start: "", participants: [...ALL_KIDS], notes: "" });
+  const [newSession, setNewSession] = useState({ date: "", time_start: "", hours: "1", participants: [...ALL_KIDS], notes: "" });
   const [newPayment, setNewPayment] = useState({ amount: "", paid_date: "", note: "" } as { amount: string | number; paid_date: string; note: string });
   const [newTeacher, setNewTeacher] = useState({
     name: "", subject: "", notes: "",
@@ -140,8 +140,9 @@ export default function LessonsPage() {
     if (!selectedId || !newSession.date) return;
     const ts = sessions[selectedId] ?? [];
     const nextNum = ts.length > 0 ? Math.max(...ts.map((s) => s.lesson_number)) + 1 : 1;
-    await addLessonSession({ teacher_id: selectedId, lesson_number: nextNum, ...newSession });
-    setNewSession({ date: "", time_start: "", participants: [...ALL_KIDS], notes: "" });
+    const { hours, ...rest } = newSession;
+    await addLessonSession({ teacher_id: selectedId, lesson_number: nextNum, hours: Number(hours) || 1, ...rest });
+    setNewSession({ date: "", time_start: "", hours: "1", participants: [...ALL_KIDS], notes: "" });
     setShowAddSession(false);
     await loadAll();
   };
@@ -173,9 +174,8 @@ export default function LessonsPage() {
     const ts = sessions[t.id] ?? [];
     const ps = payments[t.id] ?? [];
     const totalPaid = ps.reduce((a, p) => a + p.amount, 0);
-    const sessionHours = t.hours_per_session ?? 1;
     const paidSessions = t.fee_per_session ? totalPaid / t.fee_per_session : 0;
-    const done = ts.length * sessionHours;
+    const done = ts.reduce((a, s) => a + (s.hours ?? 1), 0);
     return { totalPaid, paidSessions, done, remaining: paidSessions - done };
   };
 
@@ -410,7 +410,10 @@ export default function LessonsPage() {
                       className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
                     <input type="time" value={newSession.time_start}
                       onChange={(e) => setNewSession((v) => ({ ...v, time_start: e.target.value }))}
-                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                      className="w-28 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                    <input type="number" step="0.5" min="0.5" value={newSession.hours}
+                      onChange={(e) => setNewSession((v) => ({ ...v, hours: e.target.value }))}
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" placeholder="시간" />
                   </div>
                   <div>
                     <div className="text-xs text-gray-500 mb-1">참여 아이들</div>
@@ -444,6 +447,7 @@ export default function LessonsPage() {
                         <div className="text-sm font-semibold text-gray-800">{s.date}</div>
                         <div className="text-xs text-gray-400 truncate">
                           {s.time_start && `🕐 ${s.time_start} · `}
+                          {`⏱ ${fmtN(s.hours ?? 1)}시간 · `}
                           {s.participants.join(", ")}
                           {s.notes && ` · ${s.notes}`}
                         </div>
