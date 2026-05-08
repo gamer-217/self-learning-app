@@ -30,11 +30,13 @@ export default function LessonsPage() {
     name: "", subject: "", notes: "",
     feeType: "session" as "session" | "monthly",
     fee: "", payment_day: "", hours_per_session: "1",
+    payment_alert_enabled: true,
   });
   const [editForm, setEditForm] = useState({
     name: "", subject: "", notes: "",
     feeType: "session" as "session" | "monthly",
     fee: "", payment_day: "", hours_per_session: "1",
+    payment_alert_enabled: true,
   });
 
   const loadAll = async () => {
@@ -97,6 +99,7 @@ export default function LessonsPage() {
       fee: String(t.fee_per_session ?? t.fee_monthly ?? ""),
       payment_day: String(t.payment_day ?? ""),
       hours_per_session: String(t.hours_per_session ?? 1),
+      payment_alert_enabled: t.payment_alert_enabled !== false,
     });
   };
 
@@ -110,6 +113,7 @@ export default function LessonsPage() {
       fee_monthly: editForm.feeType === "monthly" && editForm.fee ? Number(editForm.fee) : null,
       payment_day: editForm.payment_day ? Number(editForm.payment_day) : null,
       hours_per_session: editForm.feeType === "session" && editForm.hours_per_session ? Number(editForm.hours_per_session) : null,
+      payment_alert_enabled: editForm.payment_alert_enabled,
     });
     setEditingTeacher(null);
     await loadAll();
@@ -132,8 +136,9 @@ export default function LessonsPage() {
       fee_monthly: newTeacher.feeType === "monthly" && newTeacher.fee ? Number(newTeacher.fee) : null,
       payment_day: newTeacher.payment_day ? Number(newTeacher.payment_day) : null,
       hours_per_session: newTeacher.feeType === "session" && newTeacher.hours_per_session ? Number(newTeacher.hours_per_session) : null,
+      payment_alert_enabled: newTeacher.payment_alert_enabled,
     });
-    setNewTeacher({ name: "", subject: "", notes: "", feeType: "session", fee: "", payment_day: "", hours_per_session: "1" });
+    setNewTeacher({ name: "", subject: "", notes: "", feeType: "session", fee: "", payment_day: "", hours_per_session: "1", payment_alert_enabled: true });
     setShowAddTeacher(false);
     await loadAll();
   };
@@ -186,8 +191,25 @@ export default function LessonsPage() {
   const teacher = teachers.find((t) => t.id === selectedId);
   const teacherSessions = selectedId ? (sessions[selectedId] ?? []) : [];
   const teacherPayments = selectedId ? (payments[selectedId] ?? []) : [];
+  // 날짜 기준으로 표시 회차 번호 계산 (lesson_number는 입력 순서라 날짜와 다를 수 있음)
+  const displayNumbers = Object.fromEntries(teacherSessions.map((s, i) => [s.id, i + 1]));
 
   const fmtN = (n: number) => n % 1 === 0 ? String(n) : n.toFixed(1);
+
+  const getSessionPeriod = (lessonNumber: number, pmts: LessonPayment[], feePerSession: number) => {
+    const sorted = [...pmts].sort((a, b) => a.paid_date.localeCompare(b.paid_date));
+    if (sorted.length === 0) return null;
+    let cum = 0, period = 1, prev = 0;
+    for (const p of sorted) {
+      const batch = Math.round(p.amount / feePerSession);
+      cum += batch;
+      if (lessonNumber <= cum) return { period, periodSession: lessonNumber - prev, batchSize: batch };
+      prev = cum;
+      period++;
+    }
+    const lastBatch = Math.round(sorted[sorted.length - 1].amount / feePerSession);
+    return { period, periodSession: lessonNumber - prev, batchSize: lastBatch };
+  };
 
   const getStats = (t: LessonTeacher) => {
     const ts = sessions[t.id] ?? [];
@@ -283,6 +305,13 @@ export default function LessonsPage() {
           </div>
           <input value={newTeacher.notes} onChange={e => setNewTeacher(v => ({ ...v, notes: e.target.value }))}
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="메모 (선택)" />
+          <div className="flex items-center justify-between py-1">
+            <span className="text-sm font-semibold text-gray-700">수강료 납부 알림</span>
+            <button type="button" onClick={() => setNewTeacher(v => ({ ...v, payment_alert_enabled: !v.payment_alert_enabled }))}
+              className={`relative w-11 h-6 rounded-full transition-colors ${newTeacher.payment_alert_enabled ? "bg-indigo-600" : "bg-gray-300"}`}>
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${newTeacher.payment_alert_enabled ? "translate-x-5" : "translate-x-0"}`} />
+            </button>
+          </div>
           <button onClick={handleAddTeacher}
             className="w-full py-3 bg-indigo-600 text-white rounded-xl font-black text-sm">저장</button>
         </div>
@@ -337,6 +366,13 @@ export default function LessonsPage() {
               </div>
               <input value={editForm.notes} onChange={e => setEditForm(v => ({ ...v, notes: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm" placeholder="메모" />
+              <div className="flex items-center justify-between py-1">
+                <span className="text-sm font-semibold text-gray-700">수강료 납부 알림</span>
+                <button type="button" onClick={() => setEditForm(v => ({ ...v, payment_alert_enabled: !v.payment_alert_enabled }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${editForm.payment_alert_enabled ? "bg-indigo-600" : "bg-gray-300"}`}>
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${editForm.payment_alert_enabled ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+              </div>
               <div className="flex gap-2">
                 <button onClick={() => setEditingTeacher(null)}
                   className="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-sm font-bold">취소</button>
@@ -379,7 +415,7 @@ export default function LessonsPage() {
                     <span>월 <strong className="text-indigo-600">{teacher.fee_monthly.toLocaleString()}원</strong></span>
                     {teacher.payment_day && <span className="text-gray-400 text-xs">(매월 {teacher.payment_day}일)</span>}
                   </div>
-                  {next && (
+                  {next && teacher.payment_alert_enabled !== false && (
                     <div className={`text-xs px-3 py-1.5 rounded-xl inline-block font-medium ${next.daysLeft <= 3 ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}>
                       다음 납부일: {next.date} (D-{next.daysLeft})
                     </div>
@@ -389,6 +425,30 @@ export default function LessonsPage() {
               );
             })()}
           </div>
+
+          {/* Payment alert for session-based */}
+          {teacher.fee_per_session && teacher.payment_alert_enabled !== false && (() => {
+            const { remaining } = getStats(teacher);
+            if (remaining <= 0) return (
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <div className="font-bold text-red-700 text-sm">수강료 납부가 필요해요!</div>
+                  <div className="text-xs text-red-500 mt-0.5">선지급 횟수를 모두 소진했어요.</div>
+                </div>
+              </div>
+            );
+            if (remaining <= 2) return (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+                <span className="text-2xl">🔔</span>
+                <div>
+                  <div className="font-bold text-amber-700 text-sm">잔여 {fmtN(remaining)}회 — 곧 납부하세요</div>
+                  <div className="text-xs text-amber-500 mt-0.5">수강료를 미리 준비해두세요.</div>
+                </div>
+              </div>
+            );
+            return null;
+          })()}
 
           {/* Stats for session-based */}
           {teacher.fee_per_session && (() => {
@@ -484,11 +544,31 @@ export default function LessonsPage() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-3 py-2">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-black text-xs shrink-0">
-                            {s.lesson_number}회
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex flex-col items-center justify-center text-indigo-700 shrink-0">
+                            {(() => {
+                              const dn = displayNumbers[s.id];
+                              if (!teacher?.fee_per_session) return <span className="font-black text-xs">{dn}회</span>;
+                              const p = getSessionPeriod(dn, teacherPayments, teacher.fee_per_session);
+                              if (!p || p.batchSize <= 1) return <span className="font-black text-xs">{dn}회</span>;
+                              return (
+                                <>
+                                  <span className="text-[9px] font-semibold leading-tight opacity-60">{p.period}기</span>
+                                  <span className="font-black text-xs leading-tight">{p.periodSession}회</span>
+                                </>
+                              );
+                            })()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-semibold text-gray-800">{s.date}</div>
+                            <div className="text-sm font-semibold text-gray-800">
+                              {s.date}
+                              {(() => {
+                                if (!teacher?.fee_per_session) return null;
+                                const dn = displayNumbers[s.id];
+                                const p = getSessionPeriod(dn, teacherPayments, teacher.fee_per_session);
+                                if (!p || p.batchSize <= 1) return null;
+                                return <span className="text-xs text-gray-400 font-normal ml-1.5">(누계 {dn}회)</span>;
+                              })()}
+                            </div>
                             <div className="text-xs text-gray-400 truncate">
                               {s.time_start && `🕐 ${s.time_start} · `}
                               {`⏱ ${fmtN(s.hours ?? 1)}시간 · `}

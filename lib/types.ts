@@ -89,6 +89,7 @@ export interface LessonTeacher {
   payment_day: number | null;
   hours_per_session?: number | null;
   notes: string;
+  payment_alert_enabled?: boolean;
 }
 
 export interface LessonSession {

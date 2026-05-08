@@ -186,7 +186,7 @@ export async function deleteLessonTeacher(id: string): Promise<void> {
 // ── Lesson Sessions ────────────────────────────────────────
 export async function getLessonSessions(teacherId: string): Promise<LessonSession[]> {
   const { data } = await supabase.from("lesson_sessions")
-    .select("*").eq("teacher_id", teacherId).order("lesson_number");
+    .select("*").eq("teacher_id", teacherId).order("date").order("lesson_number");
   return data ?? [];
 }
 
